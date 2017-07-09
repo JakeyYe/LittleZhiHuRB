@@ -2,11 +2,13 @@ package com.example.mrye.littlezhihurb.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.ImageView;
@@ -18,15 +20,20 @@ import com.example.mrye.littlezhihurb.api.ApiService;
 import com.example.mrye.littlezhihurb.api.ServiceCreator;
 import com.example.mrye.littlezhihurb.bean.ZhiHuItemData;
 import com.example.mrye.littlezhihurb.utils.ToastUtil;
+import com.example.mrye.littlezhihurb.view.MyScrollView;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/**点击一条数据跳转到ZhiHuDescribeActivity*/
+/**
+ * 点击一条数据跳转到ZhiHuDescribeActivity
+ */
 public class ZhiHuDescribeActivity extends BaseActivity {
 
-    private Toolbar mToolbar;
+    private static final String TAG = ZhiHuDescribeActivity.class.getSimpleName();
+
+    private MyScrollView mScrollView;
     private ImageView imgDescribe;
     private TextView tvFromDescribe;
     private TextView tvTitleDescribe;
@@ -34,18 +41,20 @@ public class ZhiHuDescribeActivity extends BaseActivity {
 
     private Integer id;
     private String mShareUrl;
+    private boolean isShowed = true;
 
 
     @Override
     protected void initView(Bundle savedInstanceState) {
         setContentView(R.layout.activity_zhi_hu_describe);
-        mToolbar=getViewById(R.id.toolbar);
-        imgDescribe=getViewById(R.id.img_describe);
-        tvFromDescribe=getViewById(R.id.tv_from_describe);
-        tvTitleDescribe=getViewById(R.id.tv_title_describe);
-        webDescribe=getViewById(R.id.web_describe);
+        mToolbar = getViewById(R.id.toolbar);
+        mScrollView = getViewById(R.id.scrollView);
+        imgDescribe = getViewById(R.id.img_describe);
+        tvFromDescribe = getViewById(R.id.tv_from_describe);
+        tvTitleDescribe = getViewById(R.id.tv_title_describe);
+        webDescribe = getViewById(R.id.web_describe);
 
-        id=getIntent().getIntExtra("id",0);
+        id = getIntent().getIntExtra("id", 0);
         setSupportActionBar(mToolbar);
         //设置返回箭头图标
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -63,20 +72,56 @@ public class ZhiHuDescribeActivity extends BaseActivity {
         mSwipeBackHelper.setIsWeChatStyle(false);
         mSwipeBackHelper.setSwipeBackEnable(true);
         mSwipeBackHelper.setIsOnlyTrackingLeftEdge(false);
+
+        mScrollView.setListener(new MyScrollView.OnScrollListener() {
+            @Override
+            public void onScrollUp() {
+                hideToolBar();
+            }
+
+            @Override
+            public void onScrollDown() {
+                showToolbar();
+            }
+        });
+
+
     }
+
+    public void hideToolBar() {
+        if (isShowed) {
+            mToolbar.animate()
+                    .translationY(-mToolbar.getHeight())
+                    .setInterpolator(new AccelerateInterpolator(2));
+            //这里最后没有加start()方法，属性动画也可以运行
+            isShowed = false;
+        }
+
+    }
+
+    public void showToolbar() {
+        if (!isShowed) {
+            mToolbar.animate()
+                    .translationY(0)
+                    .setInterpolator(new DecelerateInterpolator(2));
+            isShowed = true;
+        }
+
+    }
+
 
     @Override
     protected void processLogic(Bundle savedInstanceState) {
-          getData();
+        getData();
     }
 
-    private void getData(){
-        ApiService apiService= ServiceCreator.getInstance().createService();
-        Call<ZhiHuItemData> itemData=apiService.getZhiHUItemData(id);
+    private void getData() {
+        ApiService apiService = ServiceCreator.getInstance().createService();
+        Call<ZhiHuItemData> itemData = apiService.getZhiHUItemData(id);
         itemData.enqueue(new Callback<ZhiHuItemData>() {
             @Override
             public void onResponse(Call<ZhiHuItemData> call, Response<ZhiHuItemData> response) {
-                ZhiHuItemData data=response.body();
+                ZhiHuItemData data = response.body();
 
                 Glide.with(ZhiHuDescribeActivity.this)
                         .load(data.getImage())
@@ -89,25 +134,26 @@ public class ZhiHuDescribeActivity extends BaseActivity {
                         .setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
                 webDescribe.setVerticalScrollBarEnabled(false);
                 webDescribe.setHorizontalScrollBarEnabled(true);
-                webDescribe.loadData(getHtmlData(data.getCss().get(0),data.getBody()),
-                        "text/html;charset=UTF-8",null);
-                mShareUrl=data.getShare_url();
+                webDescribe.loadData(getHtmlData(data.getCss().get(0), data.getBody()),
+                        "text/html;charset=UTF-8", null);
+                mShareUrl = data.getShare_url();
             }
 
             @Override
             public void onFailure(Call<ZhiHuItemData> call, Throwable t) {
-                ToastUtil.showToast(ZhiHuDescribeActivity.this,"网络出错，获取数据失败");
+                ToastUtil.showToast(ZhiHuDescribeActivity.this, "网络出错，获取数据失败");
             }
         });
     }
 
-    private String getHtmlData(String css,String bodyHtml){
-        String head="<head>"+
-                "<link href=\""+css+"\" rel=\"stylesheet\""+"</head>";
-        String body=bodyHtml.replace("class=\"headline\"","");//去掉这部分
-        String html="<html>"+head+"<body>"+body+"</body></html>";
+    private String getHtmlData(String css, String bodyHtml) {
+        String head = "<head>" +
+                "<link href=\"" + css + "\" rel=\"stylesheet\"" + "</head>";
+        String body = bodyHtml.replace("class=\"headline\"", "");//去掉这部分
+        String html = "<html>" + head + "<body>" + body + "</body></html>";
         return html;
     }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu, menu);

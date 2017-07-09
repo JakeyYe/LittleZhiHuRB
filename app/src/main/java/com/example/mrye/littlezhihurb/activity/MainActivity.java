@@ -183,7 +183,6 @@ public class MainActivity extends BaseActivity
         moreData.enqueue(new Callback<BeforeZhiHuStory>() {
             @Override
             public void onResponse(Call<BeforeZhiHuStory> call, Response<BeforeZhiHuStory> response) {
-                //TODO
                 addIndexView(date);
                 mRecyclerAdapter.addContentData(response.body().getStories());
             }
